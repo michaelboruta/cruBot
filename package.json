@@ -2,6 +2,7 @@
   "dependencies": {
     "@keyv/sqlite": "^4.0.5",
     "@napi-rs/canvas": "^0.1.80",
+    "cheerio": "^1.1.2",
     "discord": "^0.8.2",
     "discord.js": "^14.23.0",
     "jsdom": "^27.0.0",
