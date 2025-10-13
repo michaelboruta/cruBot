@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "@keyv/sqlite": "^4.0.5",
+    "@napi-rs/canvas": "^0.1.80",
+    "discord": "^0.8.2",
+    "discord.js": "^14.23.0",
+    "jsdom": "^27.0.0",
+    "keyv": "^5.5.3",
+    "ts-node": "^10.9.2",
+    "types": "^0.1.1"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^27.0.0"
+  }
+}
