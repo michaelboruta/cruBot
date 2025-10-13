@@ -1,40 +1,82 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags, TextChannel, ButtonBuilder, ContainerBuilder, TextDisplayBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, SeparatorBuilder, SeparatorSpacingSize, SectionBuilder, ActionRowBuilder, ActionRow, ButtonStyle, Emoji, FileBuilder, AttachmentBuilder, MessagePayload, SlashCommandSubcommandGroupBuilder, SlashCommandSubcommandBuilder, SlashCommandRoleOption, SlashCommandUserOption, SlashCommandStringOption, Interaction, GuildMember } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags, TextChannel, ButtonBuilder, ContainerBuilder, TextDisplayBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, SeparatorBuilder, SeparatorSpacingSize, SectionBuilder, ActionRowBuilder, ActionRow, ButtonStyle, Emoji, FileBuilder, AttachmentBuilder, MessagePayload, SlashCommandSubcommandGroupBuilder, SlashCommandSubcommandBuilder, SlashCommandRoleOption, SlashCommandUserOption, SlashCommandStringOption, Interaction, GuildMember, TextDisplayComponent, messageLink, User, Role } from 'discord.js';
 import Command from '../classes/Command';
 import { CruBot } from '../cruBot';
 import {roles} from '../../config.json'
+import * as cheerio from 'cheerio'
 
-async function validateIGN(ign:string) {
+async function _isValidIGN(ign:string):Promise<boolean> {
     const req = await fetch(`https://www.realmeye.com/player/${ign}`)
     const html = await req.text()
+    const $ = await cheerio.load(html)
+    const playerNotFound = $('.player-not-found').text()
+    if (playerNotFound) return false
+    return true
+}
 
-    const parser = new DOMParser()
-    const parsedData = parser.parseFromString(html, 'text/html')
-
-    if (parsedData.getElementsByClassName('player-not-found').length) {
-        console.log('player', ign, ' not found')
-    }
-
+async function _processReply(interaction:ChatInputCommandInteraction, content:string) {
+    const container = new ContainerBuilder()
+        .addTextDisplayComponents(
+            new TextDisplayBuilder()
+                .setContent(content)
+        )
+    if (interaction.replied) await interaction.editReply({components:[container], flags:MessageFlags.IsComponentsV2})
+    else await interaction.reply({components:[container], flags:[MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]})
 }
 
 async function manualVerify(interaction:ChatInputCommandInteraction, client:CruBot) {
     
     // ack interaction
-    await interaction.reply({components:[ 
-        new ContainerBuilder()
-            .addTextDisplayComponents(
-                new TextDisplayBuilder({'content':'Starting manual verification'})
-            )
-    ], flags:[MessageFlags.IsComponentsV2,MessageFlags.Ephemeral]})
-
+    // await _processReply(interaction, 'Starting manual verification')
+    
     // get data to verify
     const interactionOptions = interaction.options
-    const member = interaction.options.getMember('member')
-    const ign = interaction.options.getString('ign', true)
-    const role1 = interaction.options.getString('role-1', false)
-    const role2 = interaction.options.getString('role-2', false)
+    const user = interaction.options.getUser('user')!
+    const ign = interactionOptions.getString('ign', true)
+    const _optionRole1 = interaction.options.getString('role-1', false)
+    const _optionRole2 = interaction.options.getString('role-2', false)
 
     // check if valid ign
-    await validateIGN(ign)
+    const validIGN = await _isValidIGN(ign)
+    // if (!validIGN) {
+    //     await interaction.editReply({components:[new ContainerBuilder()
+    //         .addTextDisplayComponents(
+    //             new TextDisplayBuilder()
+    //                 .setContent('### ⚠️ Verification Error.')
+    //         )
+    //         .addSeparatorComponents(
+    //             new SeparatorBuilder()
+    //                 .setSpacing(SeparatorSpacingSize.Small)
+    //                 .setDivider(true)
+    //         )
+    //         .addTextDisplayComponents(
+    //             new TextDisplayBuilder()
+    //                 .setContent(`Could not find IGN on realmEye\n- Member: <@${user.id}>\n- IGN: \`${ign}\``)
+    //         )
+    //         .addSeparatorComponents(
+    //             new SeparatorBuilder()
+    //                 .setSpacing(SeparatorSpacingSize.Small)
+    //                 .setDivider(true)
+    //         )
+    //         .addTextDisplayComponents(
+    //             new TextDisplayBuilder()
+    //                 .setContent(`Is the IGN is spelled correctly?`)
+    //         )
+    //     ], flags:MessageFlags.IsComponentsV2})
+    //     return
+    // }
+    // else await _processReply(interaction, `IGN: \`${ign}\` valid`)
+
+    // get member and add roles
+    const member = await client._guild?.members.fetch(user.id) as GuildMember
+    if (_optionRole1) {
+        const role = await client._guild?.roles.fetch(_optionRole1)
+        if (role instanceof Role) await member.roles.add(role)
+    }
+    if (_optionRole2) {
+        const role = await client._guild?.roles.fetch(_optionRole2)
+        if (role instanceof Role) await member.roles.add(role)
+    }
+    return
 }
 
 /**
