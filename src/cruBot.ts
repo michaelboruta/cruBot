@@ -17,9 +17,9 @@ type Config = {
 }
 export class CruBot extends Client {
 
-    commands: Collection<string, Command> | undefined
-    config:Config
-    _guild:Guild|undefined
+    commands: Collection<string, Command>
+    _config:Config
+    _guild:Guild | undefined
     _guildChannels: {
         'raiding': {
             'raider':TextChannel,
@@ -31,7 +31,7 @@ export class CruBot extends Client {
     
     constructor(){
         super({intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]})
-        this.config = config
+        this._config = config
         this._db = new Db()
         const commandsPath = path.join(__dirname, 'commands')
 
@@ -40,7 +40,10 @@ export class CruBot extends Client {
         this.commands = new Collection<string, Command>();
         const commandsObj:object[] = [];
 
-        // get commands from ../commands/*.ts
+        /**
+         * get commands from ../commands/*.ts
+         * and set them on client + server
+         */
         for (const file of commandFiles) {
             const filePath = path.join(commandsPath, file);
             const commandModule = require(filePath);
@@ -53,9 +56,7 @@ export class CruBot extends Client {
                 console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
             }
         }
-
         const rest = new REST({ version: '10' }).setToken(config.token);
-
         (async () => {
             try {
                 console.log(`Refreshing ${commandsObj.length} (/) command(s).`);
@@ -72,6 +73,7 @@ export class CruBot extends Client {
                 console.error(error);
             }
         })();
+
         // (async () => {
         //     try {
         //         console.log(`Refreshing ${this.commands?.size} (/) command(s).`);

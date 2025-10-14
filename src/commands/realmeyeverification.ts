@@ -1,9 +1,15 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags, TextChannel, ButtonBuilder, ContainerBuilder, TextDisplayBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, SeparatorBuilder, SeparatorSpacingSize, SectionBuilder, ActionRowBuilder, ActionRow, ButtonStyle, Emoji, FileBuilder, AttachmentBuilder, MessagePayload, SlashCommandSubcommandGroupBuilder, SlashCommandSubcommandBuilder, SlashCommandRoleOption, SlashCommandUserOption, SlashCommandStringOption, Interaction, GuildMember, TextDisplayComponent, messageLink, User, Role } from 'discord.js';
 import Command from '../classes/Command';
-import { CruBot } from '../cruBot';
+import { cruBot } from '../cruBot';
 import {roles} from '../../config.json'
 import * as cheerio from 'cheerio'
+import { Raider } from '../classes/Raider';
 
+/**
+ * Checks if the given IGN is found on realmEye
+ * @param ign in game name
+ * @returns bool: was the user found on realmEye?
+ */
 async function _isValidIGN(ign:string):Promise<boolean> {
     const req = await fetch(`https://www.realmeye.com/player/${ign}`)
     const html = await req.text()
@@ -13,6 +19,12 @@ async function _isValidIGN(ign:string):Promise<boolean> {
     return true
 }
 
+
+/**
+ * Process state update shortcut
+ * @param interaction current interaction
+ * @param content content to send in message
+ */
 async function _processReply(interaction:ChatInputCommandInteraction, content:string) {
     const container = new ContainerBuilder()
         .addTextDisplayComponents(
@@ -23,12 +35,13 @@ async function _processReply(interaction:ChatInputCommandInteraction, content:st
     else await interaction.reply({components:[container], flags:[MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]})
 }
 
-async function manualVerify(interaction:ChatInputCommandInteraction, client:CruBot) {
+
+async function manualVerify(interaction:ChatInputCommandInteraction) {
     
-    // ack interaction
-    // await _processReply(interaction, 'Starting manual verification')
+    // acknowledge interaction
+    await _processReply(interaction, 'Starting manual verification')
     
-    // get data to verify
+    // get data from interaction
     const interactionOptions = interaction.options
     const user = interaction.options.getUser('user')!
     const ign = interactionOptions.getString('ign', true)
@@ -37,46 +50,62 @@ async function manualVerify(interaction:ChatInputCommandInteraction, client:CruB
 
     // check if valid ign
     const validIGN = await _isValidIGN(ign)
-    // if (!validIGN) {
-    //     await interaction.editReply({components:[new ContainerBuilder()
-    //         .addTextDisplayComponents(
-    //             new TextDisplayBuilder()
-    //                 .setContent('### ⚠️ Verification Error.')
-    //         )
-    //         .addSeparatorComponents(
-    //             new SeparatorBuilder()
-    //                 .setSpacing(SeparatorSpacingSize.Small)
-    //                 .setDivider(true)
-    //         )
-    //         .addTextDisplayComponents(
-    //             new TextDisplayBuilder()
-    //                 .setContent(`Could not find IGN on realmEye\n- Member: <@${user.id}>\n- IGN: \`${ign}\``)
-    //         )
-    //         .addSeparatorComponents(
-    //             new SeparatorBuilder()
-    //                 .setSpacing(SeparatorSpacingSize.Small)
-    //                 .setDivider(true)
-    //         )
-    //         .addTextDisplayComponents(
-    //             new TextDisplayBuilder()
-    //                 .setContent(`Is the IGN is spelled correctly?`)
-    //         )
-    //     ], flags:MessageFlags.IsComponentsV2})
-    //     return
-    // }
-    // else await _processReply(interaction, `IGN: \`${ign}\` valid`)
+    validIGN ? await _processReply(interaction, `IGN: \`${ign}\` valid`) : async()=> {
 
-    // get member and add roles
-    const member = await client._guild?.members.fetch(user.id) as GuildMember
+        await interaction.editReply({components:[new ContainerBuilder()
+            .addTextDisplayComponents(
+                new TextDisplayBuilder()
+                    .setContent('### ⚠️ Verification Error.')
+            )
+            .addSeparatorComponents(
+                new SeparatorBuilder()
+                    .setSpacing(SeparatorSpacingSize.Small)
+                    .setDivider(true)
+            )
+            .addTextDisplayComponents(
+                new TextDisplayBuilder()
+                    .setContent(`Could not find IGN on realmEye\n- Member: <@${user.id}>\n- IGN: \`${ign}\``)
+            )
+            .addSeparatorComponents(
+                new SeparatorBuilder()
+                    .setSpacing(SeparatorSpacingSize.Small)
+                    .setDivider(true)
+            )
+            .addTextDisplayComponents(
+                new TextDisplayBuilder()
+                    .setContent(`Is the IGN is spelled correctly?`)
+            )
+        ], flags:MessageFlags.IsComponentsV2})
+        return
+    }    
+
+    // get member and add roles if any
+    const member = await cruBot._guild?.members.fetch(user.id) as GuildMember
+    const roles = []
     if (_optionRole1) {
-        const role = await client._guild?.roles.fetch(_optionRole1)
-        if (role instanceof Role) await member.roles.add(role)
+        const role = await cruBot._guild?.roles.fetch(_optionRole1)
+        if (role instanceof Role) roles.push(role)
     }
     if (_optionRole2) {
-        const role = await client._guild?.roles.fetch(_optionRole2)
-        if (role instanceof Role) await member.roles.add(role)
+        const role = await cruBot._guild?.roles.fetch(_optionRole2)
+        if (role instanceof Role) roles.push(role)
     }
-    return
+
+    // assign member roles if any
+    if (roles.length) {
+        await _processReply(interaction, 'Assigning roles.')
+        await member.roles.add(roles)
+        await _processReply(interaction, 'Roles assigned.')
+    }
+
+    // add new verified member to database
+    await _processReply(interaction, 'Adding member to database.')
+    await new Raider(ign, user.id).saveToDB(cruBot)
+    await _processReply(interaction, 'Added member to database.')
+
+
+
+
 }
 
 /**
@@ -114,8 +143,8 @@ const realmeyeverificationpanel: Command = {
                         .setDescription('Optional roles to verify member with.')
                         .setRequired(false)
                         .setChoices(
-                            { 'name':'Raider', 'value': roles.raider},
-                            { 'name':'Veteran', 'value': roles.veteran},
+                            { 'name':'Raider', 'value': '1423899658459152396'},
+                            { 'name':'Veteran', 'value': '1423899658459152396'},
                         )
                         
                 )      
@@ -130,9 +159,9 @@ const realmeyeverificationpanel: Command = {
                 )      
         )
     ),
-    async execute(interaction: ChatInputCommandInteraction, client:CruBot) { 
+    async execute(interaction: ChatInputCommandInteraction) { 
         const command = interaction.options.getSubcommand(true)
-        if (command === 'manual') await manualVerify(interaction, client)
+        if (command === 'manual') await manualVerify(interaction)
     }
 }
 
