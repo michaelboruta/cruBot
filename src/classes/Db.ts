@@ -1,5 +1,6 @@
 import Keyv from 'keyv';
 import KeyvSqlite from '@keyv/sqlite';
+import { Raider } from './Raider';
 
 type verificationData = {
     ign:string,
@@ -13,13 +14,13 @@ type userData = {
 
 export class Db {
     private sqliteStore:KeyvSqlite
-    private verificationDB:Keyv<any>
-    private usersDB:Keyv<any>
+    verificationDB:Keyv
+    usersDB:Keyv
     
     constructor() {
         this.sqliteStore = new KeyvSqlite({ uri: 'sqlite://../db.sqlite' })
-        this.verificationDB = new Keyv({ store: this.sqliteStore, namespace: 'verification'})
-        this.usersDB = new Keyv({ store: this.sqliteStore, namespace: 'users' });
+        this.verificationDB = new Keyv<string>({ store: this.sqliteStore, namespace: 'verification'})
+        this.usersDB = new Keyv<string>({ store: this.sqliteStore, namespace: 'users' });
     }
 
     async save( key:string, value:any, dbName: 'verification'|'users'|'headcounts'|'headcountConfirmation' ) {
@@ -33,5 +34,14 @@ export class Db {
     async delete( key:string, dbName: 'verification'|'users'|'headcounts'|'headcountConfirmation' ) {
         if (dbName === 'verification') await this.verificationDB.delete(key)
         else if (dbName === 'users') await this.usersDB.delete(key)
+    }
+    async findMemberByIGN(ign:string):Promise<Raider|undefined> {
+        const users = this.usersDB?.iterator?.(undefined)!
+        for await(const user of users) {
+            // array is [[k, {v}]]
+            const raider = user[1] as Raider
+            if (raider.ign === ign) return user
+        }   
+        return undefined
     }
 }

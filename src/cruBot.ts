@@ -1,4 +1,4 @@
-import { Client, Collection, GatewayIntentBits, Guild, REST, Routes, TextChannel } from "discord.js";
+import { Client, Collection, GatewayIntentBits, Guild, REST, Role, Routes, TextChannel } from "discord.js";
 import Command from "./classes/Command";
 import path from 'node:path'
 import fs from 'node:fs'
@@ -20,6 +20,7 @@ export class CruBot extends Client {
     commands: Collection<string, Command>
     _config:Config
     _guild:Guild | undefined
+    _roles:Map<string,Role>
     _guildChannels: {
         'raiding': {
             'raider':TextChannel,
@@ -32,6 +33,7 @@ export class CruBot extends Client {
     constructor(){
         super({intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]})
         this._config = config
+        this._roles = new Map<string, Role>()
         this._db = new Db()
         const commandsPath = path.join(__dirname, 'commands')
 
