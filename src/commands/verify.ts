@@ -4,7 +4,8 @@ import { CruBot } from '../cruBot';
 import * as cheerio from 'cheerio'
 import { Raider } from '../classes/Raider';
 import {roles} from '../../config.json'
-import { manualVerify } from './verify/manualVerify';
+import { verifyManual } from './verify/verifyManual';
+import { selfVerify } from './verify/verifySelf';
 
 
 
@@ -108,8 +109,8 @@ const verify: Command = {
     ),
     async execute(interaction: ChatInputCommandInteraction, client:CruBot) { 
         const command = interaction.options.getSubcommand(true)
-        if (command === 'manual') await manualVerify(interaction, client)
-        if (command === 'panel') await manualVerify(interaction, client)
+        if (command === 'manual') await verifyManual(interaction, client)
+        if (command === 'panel') await selfVerify(interaction, client)
 
     }
 }

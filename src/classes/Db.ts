@@ -40,7 +40,7 @@ export class Db {
         for await(const user of users) {
             // array is [[k, {v}]]
             const raider = user[1] as Raider
-            if (raider.ign === ign) return user
+            if (raider.ign === ign) return raider
         }   
         return undefined
     }
